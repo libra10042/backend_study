@@ -1,0 +1,9 @@
+Application에서 Instance를 하나만 만들어 사용하기 위한 패턴이다.
+( 외부에서 객체를 생성하는 것을 막이 위한 패턴 )
+
+
+방법1) private static Singleton instance;
+
+방법2) private static volatile Singleton instance = new Singleton();
+
+방법3) enum을 활용한 단일 쇼오 인스턴스 생성.
