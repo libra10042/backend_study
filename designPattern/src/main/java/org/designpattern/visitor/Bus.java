@@ -10,15 +10,16 @@ public class Bus implements Car {
 
 
     public int drive() {
-        return 0;
+        return --fuel;
     }
 
     public int getFuel() {
-        return 0;
+        return fuel;
     }
 
-    public String visit(ViewVisitor viewVisitor) {
-        return null;
+    public String visit(final ViewVisitor viewVisitor) {
+
+        return viewVisitor.visit(this);
     }
 
 

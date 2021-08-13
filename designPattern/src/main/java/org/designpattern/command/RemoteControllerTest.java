@@ -2,7 +2,6 @@ package org.designpattern.command;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.assertj.core.api.Assertions.assertThat
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class RemoteControllerTest {
@@ -22,7 +21,7 @@ public class RemoteControllerTest {
         /* When */
         controller.setCommand(musicOffCommand);
         /* Then */
-        assertThat(controller.pressButton()).isEqualTo("play off Music!!");
+        assertThat(controller.pressButton(), equals("play off Music!!"));
     }
 
     @Test
@@ -32,7 +31,7 @@ public class RemoteControllerTest {
         /* When */
         controller.setCommand(musicOnCommand);
         /* Then */
-        assertThat(controller.pressButton()).isEqualTo("play Music!!");
+        assertThat(controller.pressButton(), equals("play Music!!"));
     }
 
 

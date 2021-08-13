@@ -5,11 +5,11 @@ public class Truck implements Car {
     private int fuel;
 
     public int drive() {
-        return 0;
+        return --fuel;
     }
 
     public int getFuel() {
-        return 0;
+        return fuel;
     }
 
     public String visit(ViewVisitor viewVisitor) {
