@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+<!--    <bean id="mprinter" class="com.di.step1.MonoPrinter"></bean>-->
+    <bean id="cprinter" class="com.di.step1.ColorPrinter"></bean>
+
+<!--  객체일 경우 Ref   -->
+    <bean id="hello" class="com.di.step1.Hello">
+        <constructor-arg index="0" ref="cprinter" />
+        <constructor-arg index="1" value="SPRING" />
+
+    </bean>
+
+</beans>

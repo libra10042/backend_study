@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel target="1.8">
+      <module name="DI_02" target="1.5" />
+      <module name="DI_TEST" target="1.5" />
+      <module name="TEST_01" target="1.5" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

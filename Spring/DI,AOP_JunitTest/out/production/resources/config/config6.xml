@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd">
+
+        <bean id="printer" class="com.di.step1.ColorPrinter" />
+
+        <bean id="hello" class="com.di.step6.Hello">
+                <property name="printer" ref="printer" />
+                <property name="persons">
+                        <list>
+                                <bean class="com.di.step6.Person">
+                                        <property name="age" value="${person1.age}" />
+                                        <property name="name" value="${person1.name}" />
+                                </bean>
+                                <bean class="com.di.step6.Person">
+                                        <property name="age" value="${person2.age}"/>
+                                        <property name="name" value="${person2.name}"/>
+                                </bean>
+                                <bean class="com.di.step6.Person">
+                                        <property name="age" value="${person3.age}" />
+                                        <property name="name" value="${person3.name}" />
+                                </bean>
+                        </list>
+                </property>
+        </bean>
+
+        <context:property-placeholder
+            location="classpath:personlist.properties" />
+</beans>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.1.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd">
+
+    <bean id="mono" class="com.aop.step1.ui.MonoPrinter"></bean>
+    <bean id="color" class="com.aop.step1.ui.ColorPrinter"></bean>
+
+    <bean id="person" class="com.aop.step1.entity.Person">
+        <property name="printer" ref="mono" />
+        <property name="name" value="홍길동" />
+        <property name="major" value="영문학" />
+        <property name="examList">
+            <list>
+                <bean class="com.aop.step1.entity.ExamScore">
+                    <property name="grade" value="1" />
+                    <property name="kor" value="100" />
+                    <property name="eng" value="90" />
+                    <property name="mat" value="80" />
+                </bean>
+                <bean class="com.aop.step1.entity.ExamScore">
+                    <property name="grade" value="2" />
+                    <property name="kor" value="70" />
+                    <property name="eng" value="60" />
+                    <property name="mat" value="40" />
+                </bean>
+                <bean class="com.aop.step1.entity.ExamScore">
+                    <property name="grade" value="3" />
+                    <property name="kor" value="100" />
+                    <property name="eng" value="90" />
+                    <property name="mat" value="80" />
+                </bean>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="securityAop" class="com.aop.step1.advice.SecurityAop" />
+
+    <aop:config>
+        <aop:aspect id="logAspect" ref="securityAop">
+            <aop:pointcut id="logAspectPointCut" expression="execution(public * com.aop.step1.entity.Person.*(..))" />
+            <aop:before method="logBefore" pointcut-ref="logAspectPointCut" />
+            <aop:around method="logAround" pointcut-ref="logAspectPointCut" />
+            <aop:after-returning method="logAfterReturning" pointcut-ref="logAspectPointCut" returning="retVal" />
+            <aop:after-throwing method="logAfterThrowing" pointcut-ref="logAspectPointCut" throwing="ex" />
+            <aop:after method="logAfter" pointcut-ref="logAspectPointCut" />
+        </aop:aspect>
+    </aop:config>
+
+</beans>
