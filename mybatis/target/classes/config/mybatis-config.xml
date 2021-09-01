@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <!-- SelectBaseMapper.xml에서 resultType 간단히 적고 경로를 지정하는 방법 -->
+<!--    <typeAliases>-->
+<!--        &lt;!&ndash; <typeAlias alias="AreaSale" type="co.kr.mono.training.vo.AreaSaleVO"/> &ndash;&gt;-->
+<!--        <typeAlias alias="Msales" type="co.kr.mono.training.vo.MsalesVO"/>-->
+<!--        &lt;!&ndash; <package name="co.kr.mono.training.nvo"/> &ndash;&gt;-->
+<!--    </typeAliases>-->
+
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <dataSource type="POOLED">
+
+                <property name="driver" value="oracle.jdbc.OracleDriver"/>
+                <property name="url" value="jdbc:oracle:thin:@192.168.0.55:1521:mdctdb"/>
+                <property name="username" value="iaccess_user"/>
+                <property name="password" value="iaccess"/>
+
+            </dataSource>
+
+        </environment>
+    </environments>
+    <mappers>
+
+        <mapper resource="mapper/selectBaseMapper1.xml"/>
+
+    </mappers>
+</configuration>
