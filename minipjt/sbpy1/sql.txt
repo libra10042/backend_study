@@ -1,0 +1,27 @@
+use sbpy1;
+
+CREATE TABLE article (
+    ID INT(10) UNSIGNED NOT NULL auto_increment,
+	PRIMARY KEY(ID), 
+	REGDATE DATETIME NOT NULL, 
+	TITLE CHAR(100) NOT NULL, 
+	`BODY` TEXT NOT NULL 
+);
+
+INSERT INTO article
+set REGDATE = NOW(),
+TITLE = '제목1', 
+BODY = '내용1';
+
+
+INSERT INTO article
+set REGDATE = NOW(),
+TITLE = '제목2', 
+BODY = '내용2';
+
+INSERT INTO article
+set REGDATE = NOW(),
+TITLE = '제목3', 
+BODY = '내용3';
+
+select * from article;

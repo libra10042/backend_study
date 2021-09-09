@@ -1,0 +1,24 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: 'startup'
+mybatis:
+  type-aliases-package: com.cj.sbpy1.dto
+  mapper-locations: classpath:mapper/*.xml
+server:
+  port: 8083
+
+
+
+spring:
+  thymeleaf:
+    prefix: classpath:templates/
+    suffix: .html
+    cache: false
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/sbpy1?serverTimezone=UTC&characterEncoding=UTF-8
+    username: root
+    password: 1234
