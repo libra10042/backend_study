@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="co.kr.calc.DollarCalculatorTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2021-09-14T06:05:43" hostname="HUMBLE" time="0.956">
-  <properties/>
-  <testcase name="mockTest()" classname="co.kr.calc.DollarCalculatorTest" time="0.956"/>
-  <system-out><![CDATA[60000
-]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
