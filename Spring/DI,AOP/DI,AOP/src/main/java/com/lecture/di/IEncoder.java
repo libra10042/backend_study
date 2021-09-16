@@ -1,0 +1,6 @@
+package com.lecture.di;
+
+public interface IEncoder {
+    String encode(String message);
+
+}
