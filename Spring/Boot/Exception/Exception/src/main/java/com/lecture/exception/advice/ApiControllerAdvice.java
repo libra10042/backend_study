@@ -1,5 +1,6 @@
 package com.lecture.exception.advice;
 
+import com.lecture.exception.controller.ApiController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -7,7 +8,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(basePackages = "com.lecture.exception.controller")
+//@RestControllerAdvice(basePackages = "com.lecture.exception.controller")
+@RestControllerAdvice(basePackageClasses = ApiController.class)
 public class GlobalControllerAdvice {
 
     @ExceptionHandler(value = Exception.class)
