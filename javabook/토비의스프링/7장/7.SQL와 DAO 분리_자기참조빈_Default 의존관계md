@@ -1,0 +1,852 @@
+# 🪔스프링 핵심 기술의 응용
+
+## SQL 과 DAO 의 분리 
+
+> 1) XML 설정을 이용한 분리 
+> - 개별 SQL프로퍼티 방식
+> - SQL 맵 프로퍼티 방식. 
+> 2) 리팩토링 <br>
+> - ☑SQL 제공서비스를 이용하는 방식. 
+> - ☑스프링 설정을 사용하는 단순 SQL 
+
+### 개별 SQL 프로퍼티 방식. 
+
+```JAVA
+public class UserDaoJdbc implements UserDao {
+    private String sqlAdd; 
+    
+    public void setSqlAdd(String sqlAdd){
+        this.sqlAdd = sqlAdd;
+    }
+      
+```
+
+```JAVA
+public void add(User user) {
+    this.jdbcTemplate.update(
+        this.sqlAdd, 
+        user.getId(), user.getName(), user.getPassword(), user.getEmail(),
+        user.getLevel().intValue(), user.getLogin(), user.getRecommand());
+}
+```
+
+```JAVA
+<bean id="userDao" class="springboot.user.dao.UserDaoJdbc">
+    <property name="dataSource" ref="dataSource" />
+    <property name="sqlAdd" value="insert into users(id, name, password, 
+        email, level, login, recommand)  values(?,?,?,?,?,?,?)" />
+```
+
+### SQL 맵 프로퍼티 방식. 
+
+: UserDao에서 SQL을 주입받기 위해 개별적으로 정의한 프로퍼티를 모두 제거하자. <br>그리고 Map 타입의 sqlMap을 대신 추가한다.
+
+```java
+public class UserDaoJdbc implements UserDao{
+
+    private Map<String, String> sqlMap;
+    
+    public void setSqlMap(Map<String, String> sqlMap){
+        this.sqlMap = sqlMap;
+    }
+}
+```
+
+```java
+public void add(User user){
+    this.jdbcTemplate.update(
+        this.sqlMap.get("add"),
+        user.getId(), user.getName(), user.getPassword(), user.getEmail(), 
+        user.getLevel().intValue(), user.getLogin(), user.getRecommand());
+    )
+```
+
+```java
+<bean id="uerDao" class="springbook.user.dao.UserDaoJdbc">
+    <property name="dataSource" ref="dataSource" />
+    <property name="sqlMap">
+         <map>    
+              <entry key="add" value="insert into users(id, name, password, email, level, login, recommend)
+                                      valuse(?,?,?,?,?,?,?)" />
+              <entry key="get" value="select * from users where id=?" />
+              <entry key="getAll" value="select * from users order by id" />
+              <entry key="deleteAll" value="delete from users" />
+              <entry key="getCount" value="select count(*) from users" />
+              <entry key="update" value="update users set name = ?, password = ?, email = ?, level =?, 
+                                          login = ?, recommand = ? where id = ?" />
+         </map>
+    </property>
+</bean>
+```
+
+" sql 맵 프로퍼티 방식은 해당 메소드가 실행되기 전에는 오류를 확인하기 힘들다는 단점이 있다. "
+
+<br>
+
+### ☑SQL 제공 서비스를 이용한 방식. 
+
+##### SqlService 인터페이스
+
+```java
+public interface SqlService{
+     String getSql(String key) throws SqlRetrievalFailureException;
+
+}
+```
+
+* SqlRetrievalFailureException : 이 예외는 복구가 불가능하므로 런타임 예외로 정의해 둔다.
+
+##### SQL 조회 실패 시 예외
+
+```java
+public class SqlRetrievalFailureException extends RuntimeException {
+     public SqlRetrievalFailureException(String message){
+        super(message);
+     }
+     
+     public SqlRetrievalFailureException(String message, Throwable cause){
+        super(message, cause);
+     }
+}
+```
+
+##### SqlService 프로퍼티 추가. 
+
+```java
+public class UserDaoJdbc implements UserDao{
+    private SqlService sqlService; 
+    
+    public void setSqlService(SqlService sqlService){
+        this.sqlService = sqlService; 
+    }
+}
+```
+
+##### sqlService 를 사용하도록 수정한 메소드
+
+```java
+public void add(User user){
+    this.jdbcTemplate.update(this.sqlService.getSql("userAdd"),
+          user.getId(), user.getName(), user.getPassword(), user.getEmail(), 
+          user.getLevel().intValue(), user.getLogin(), user.getRecommand());
+}
+    
+public User get(String id){
+    return this.jdbcTemplate.queryForObject(this.sqlService.getSql("userGet"),
+        new Object[] {id}, this.userMapper);
+}
+   
+public List<User> getAll(){
+    return this.jdbcTemplate.query(this.sqlService.getSql("userGetAll"),
+          this.userMapper);
+}
+
+public int getCount(){
+    return this.jdbcTemplate.queryForInt(this.sqlService.getSql("userGetCount"));
+}
+
+public void update(User user){
+    this.jdbcTemplate.update(this.sqlService.getSql("userUpdate"),
+        user.getName(), user.getPassword(), user.getEmail(), 
+        user.getLevel().intValue(), user.getLogin(), user.getRecommand(), 
+        user.getId()); 
+}
+
+```
+
+
+#### ☑스프링 설정을 사용하는 단순 SQL 서비스
+
+```java
+
+public class SimpleService implements SqlService{
+    private Map<String, String> sqlMap;
+    
+    public void setSqlMap<String, String> sqlMap){
+        this.sqlMap = sqlMap; 
+    }
+    
+    
+    public String getSql(String key) throws SqlRetrievalFailureException {
+        String sql = sqlMap.get(key);
+        
+        if(sql == null)
+            throw new SqlRetrievalFailureException( key + "에 대한 SQL을 찾을 수 없습니다");
+        else {
+            return sql; 
+    }
+}
+```
+
+```java
+<bean id="userDao" class="springbook.dao.userDaoJdbc">
+    <property name="dataSource" ref="dataSource" />
+    <property name="sqlService" ref="sqlService" />
+</bean>
+
+<bean id="sqlService" class="springbook.user.sqlservice.SimpleSqlService">
+    <property name"sqlMap">
+        <map>
+            <entry key="userAdd" value="insert into user(id, name, password, email, level, login, recomned) values(?, ?, ?, ?, ?, ?, ?)" />
+            <entry key="userGet" value="select * from users where id = ?" />
+            <entry key="userGetAll" value="select * from users order by id" />
+            <entry key="userDeleteAll" value="delete from users" />
+            <entry key="userGetCount" value="select count(*) from users" />
+            <entry key="userUpdate" value="update users set name = ?, password = ?, email = ?, level = ?, login = ?, recommand = ? where id = ?" />
+        </map>
+    </property>
+</bean>
+```
+
+
+----
+
+## 인터페이스 분리와 자기참조 빈. 
+
+### XML 파일 매핑 
+
+> - ☑JAXB
+> - ☑SQL 맵을 위한 스키마 작성과 컴파일 
+> - ☑언마샬링
+
+#### ☑JAXB
+
+ : XML에 담긴 정보를 파일에서 읽어오는 방법은 여러가지 인데 그중 하나가 JAXB (Java Architecture for XML Binding)를 이용했다. 
+ 
+ * "DOM" 과 같은 전통적인 XML API 와 비교했을 때 JAXB의 장점은 XML 문서정보를 거의 동일한 구조의 오브젝트로 직접 매핑해준다는 것이다. 
+ * "DOM"은 XML 정보를 마치 자바의 리플렉션 API를 사용해서 오브젝트를 조작하는 것처럼 간접적으로 접근해야 하는 불편이 있다.
+ * "JAXB"는 XML의 정보를 그대로 담고 있는 오브젝트 트리 구조로 만들어주기 때문에 XML 정보를 오브젝트처럼 다룰 수 있어 편리하다. 
+ * "JAXB"는 XML 문서의 구조를 정의한 스키마를 이용해서 매핑할 오브젝트의 클래스까지 자동으로 만들어주는 컴파일러도 제공해준다.
+ ( 스키마 컴파일러를 통해 자동생성된 오브젝트에는 매핑정보가 애노테이션으로 담겨 있다. <br> JAXB API는 애노테이션에 담긴 정보를 이용해서 XML 과 매핑된 오브젝트 트리 사이의 자동변환 작업을 수행해 준다. )  
+ 
+ 
+ <br>
+ 
+ #### SQL 맵을 위한 스키마 작성과 컴파일 
+ 
+ : SQL 정보는 키와 SQL의 목록으로 구성된 맵 구조로 만들어두면 편리하다. 
+ 
+ ##### SQL 맵 XML 문서
+ 
+ ```JAVA
+ <sqlmap>
+        <sql key="userAdd"> insert into users(...) ...</sql>
+        <sql key="userGet"> select * from users ... </sql>
+
+ </sqlmap> 
+ ```
+ 
+ ###### SQL 맵 문서에 대한 스키마
+ 
+ ```JAVA
+ <? xml version="1.0" encoding="UTF-8"?>
+ <schema xmlns="http://www.w3.org/2001/XMLSchema"
+        targetNamespace="http://www.epril.com/sqlmap"
+        xmlns:tns="http://www,epril.com/sqlmap" elementFormDefault="qualified">
+        
+        <element name="sqlmap">
+              <complexType>
+                    <sequence>      
+                        <element name="sql" maxOccurs="unbounded" type="tns:sqlType" />
+                    </sequence>
+              </complexType>
+        </element>
+        <complexType name="sqlType">
+               <simpleContent>
+                     <extension base="string">
+                            <attribute name="key" use="required" type="string" />
+                     </extension>
+               </simpleContent>
+        </complexType>
+</schema>
+```
+
+
+###### SqlmapType 클래스
+
+```java
+@XmlAccessorType(XmlAccessType.FIELD)
+@XmlType(name = "sqlmapType", propOrder = { "sql" })
+@XmlRootElement(name = "sqlmap")
+public class SqlMap {
+    @XmlElement(required = true)
+    protected List<SqlType> sql;
+    
+    public List<SqlType> getSql(){
+        if(sql == null){
+            sql = new ArrayList<SqlType>();
+        }
+        return this.sql;
+    }
+}
+```
+
+```java
+@XmlAccessorType(XmlAccessType.FIELD)
+@XmlType(name = "sqlType", propOrder = {"value"} )
+public class SqlType {    // <sql> 태그 한 개당 SqlType 오브젝트가 하나씩 만들어진다. 
+
+    @XmlValue
+    protected String value;  // SQL 값을 저장할 스트링 타입의 필드
+    
+    @XmlAttribute(required = true)
+    protected String key; 
+    
+    public String getValue(){
+        return value; 
+    }
+    
+    public void setValue(String value){
+        this.value = value;
+    }
+    
+    public String getKey(){
+        return key; 
+    }
+    
+    public void setKey(String value){
+        this.key = value; 
+    }
+
+
+}
+```
+
+### ☑언마샬링
+
+: 생성된 매핑 클래스를 적용하기 전에 먼저 JAXB API 의 사용법을 익힐 수 있도록 간단한 학습 테스트를 만들어보자. 
+
+##### 테스트용 SQL 맵 XML 문서
+
+```java
+<? xml version="1.0" encoding="UTF-8"?>
+<sqlmap xmlns="http://www.epril.com/sqlmap"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.epril.com/sqlmap ../../../../sqlmap.xsd ">
+            <sql key="add">insert</sql>
+            <sql key="get">select</sql>
+            <sql key="delete">delete></sql>
+</sqlmap>
+```
+
+* sqlmap.xml이 JAXB 언마샬링을 통해 매핑 오브젝트로 변환되는지 확인해보자.
+
+##### JAXB 학습 테스트
+
+```java
+public class JaxbTest {
+
+    @Test
+    public void readSqlmap() throws JAXBException, IOException {
+        String contextPath = Sqlmap.class.getPackage().getName(); 
+        JAXBContext context = JAXBContext.newInstance(contextPath);  // 바인딩용 클래스들 위치를 가지고 JAXB 컨텍스트를 만든다.
+        
+        
+        Unmarshaller unmashaller = context.createUnmarshaller();  // 언마샬러 생성
+        
+        Sqlmap sqlmap = (Sqlmap) unmarshaller.unmarshal(          // 언마샬을 하면 매핑된 오브젝트 트리의 루트인 Sqlmap을 돌려준다.
+                getClass().getResourceAsStream("sqlmap.xml")); 
+        
+        List<SqlType> sqlList = sqlmap.getSql(); 
+        
+        assertThat(sqlList.size(), is(3)); 
+        assertThat(sqlList.get(0).getKey(), is("add"));
+        assertThat(sqlList.get(0).getValue(), is("insert"));
+        assertThat(sqlList.get(1).getKey(), is("get"));
+        assertThat(sqlList.get(1).getValue(), is("select"));
+        assertThat(sqlList.get(2).getKey(), is("delete"));
+        assertThat(sqlList.get(3).getValue(), is("delete"));        // List에 담겨 있는 sql 오브젝트를 가져와 XML 문서와 같은 정보를 갖고 있는지 확인한다.
+    }
+}
+```
+
+<br>
+
+---
+
+### ☑XML 파일을 이용하는 SQL 서비스
+
+> ⚀SQL 맵 XML 파일  <br>
+> ⚀빈의 초기화 작업 <br>
+> ⚀변화를 위한 준비 : 인터페이스 분리 <br>
+> <br>
+> ⚀자기 참조빈으로 시작하기 <br>
+> - 1.  인터페이스를 이용한 분리 <br>
+> - 2.  자기참조 빈 설정 <br>
+> <br>
+> ⚀디퐅트 의존관계 <br>
+> - 1.  확장 가능한 기반 클래스
+> - 2.  디폴트 의존관계를 갖는 빈 만들기 
+
+#### ⚀SQL 맵 XML 파일
+
+```JAVA
+<?xml version="1.0" encoding="UTF-8?>
+<sqlmap xmlns="http://www.epril.com/sqlmap"
+            xmlns="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.epril.com/sqlmap
+                            http://www.epril.com/sqlmapsqlmap.xsd">
+    <sql key="userAdd">insert into users(id, name, password, email, level, login, recommend) values(?,?,?,?,?,?,?) </sql>
+    <sql key="userGet">select * from users where id = ?</sql>
+    <sql key="userGetAll">select * from users order by id</sql>
+    <sql key="userDeleteAll">delete from users</sql>
+    <sql key="userGetCount'>select count(*) from users</sql>
+    <sql key="userUpdate">update users set name = ?, password = ?, email = ?, level = ?, login =?, recommend = ? where id = ? </sql>
+
+</sqlmap>
+```
+
+#### XML SQL 서비스 
+
+: 언제 JAXB를 사용해 XML 문서를 가져올지 생각해봐야 한다. 
+
+* DAO 가 SQL 을 요청할 때마다 매번 XML 파일을 다시 읽어서 SQL을 찾는 건 너무 비효율적인 방법이다. <br>
+* 특별한 이유가 없는 한 XML 파일은 한 번만 읽도록 해야 한다. 
+
+##### 생성자 초기화 방법을 사용하는 XmlSqlService  클래스
+
+```java
+public class XmlSqlService implements SqlService {
+    private Map<String, String> sqlMap = new HashMap<String, String>();
+    
+    public XmlSqlService(){
+    
+        String contextPath = Sqlmap.class.getPackage().getName(); 
+        try{
+            JAXBContext context = JAXBContext.newInstance(contextPath);
+            Unmarshaller unmarshaller = context.createUnmarshaller();
+            InputStream is = UserDao.class.getResourceAsStream("sqlmap.xml");
+            Sqlmap sqlmap = (Sqlmap) unmarshaller.unmarshal(is);
+            
+            
+            for(SqlType sql : sqlmap.getSql()){
+                sqlMap.put(sql.getKey(), sql.getValue());
+                    
+            }
+        
+        }catch(JAXBException e)}
+            throw new RuntimeException(e); 
+        }
+    }
+    public String getSql(String key) throws SqlRetrievalFailureException {
+        String sql = sqlMap.get(key);
+        if(sql == null)
+            throw new SqlRetrievalFailureException(key + "를 이용해서 SQL을 찾을 수 없습니다.");
+        else 
+            return sql; 
+    }
+}
+```
+
+##### sqlService 설정 변경
+
+```java
+<bean id="sqlService" class="springbook.user.sqlservice.XmlSqlService">
+</bean>
+```
+<br> <br>
+
+### ⚀빈의 초기화 작업. 
+
+##### SQL 맵 파일 이름 프로퍼티
+
+```java
+private String sqlmapFile;
+
+public void setSqlmapFile(String sqlmapFile){
+    this.sampleFile = sqlmapFile; 
+}
+```
+
+##### 생성자 대신 사용할 초기화 메서드
+
+```java
+public void loadSql(){
+    String contextPath = Sqlmap.class.getPackage().getName();
+    
+    try {
+        ...
+        InputStream is = UserDao.class.getResourceAsStream(this.sqlmapFile);
+        ...
+    }
+}
+```
+
+##### XmlSqlService 오브젝트의 초기화 방법
+
+``` java
+XmlSqlService sqlProvider = new XmlSqlService();
+sqlProvider.setSqlmapFile("Sqlmap.xml");
+sqlProvider.loadSql();
+```
+
+* XmlSqlService 오브젝트는 빈이므로 제어권이 스프링에 있다.
+
+✍🏻 AOP 에서 빈 후처리기에 대해 설명했다. <br> 빈 후처리기는 스프링 컨테이너가 빈을 생성한 뒤에 부가적인 작업을 수행할 수 있게 해주는 특별한 기능이다. <br>
+AOP를 위한 프록시 자동생성기가 대표적인 빈 후처리기다. 프록시 자동  생성기 외에도 스프링이 제공하는 여러 가지 빈 후처리기가 존재한다. <br>
+그 중에서 애노테이션을 이용한 빈 설정을 지원해주는 몇 가지 빈 후처리기가 존재한다. <br>
+" < bean > " 태그를 이용해 하나씩 등록하는 방법보다는 context 스키마의 annotation-config 태그를 사용하면 편리하다. 
+    
+    
+    
+##### context 네임스페이스 선언과 annotation-config 태그 설정. 
+```java
+<beans xmlns="http://www.springframework.rog/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:aop="http://www.springframework .org/schema/aop"
+    xmlns:context="http://www.springframework.org/schema/context"   // context 스키마에 정의된 태그를 context 네임스페이스를 통해 사용하도록 정의한다.
+    xmlns:tx="http:www.springframework.org/schema/tx"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+            http://www.springframework.org/schema/aop
+            http://www.springframework.org.schema/aop/spring-aop-3.0.xsd
+            http://www.springframework.org.schema/context
+            http://www.springframework.org.schema/context/spring-context-3.0.xsd   // context 스키마에 정의된 태그를 context 네임스페이스를 통해 사용하도록 정의한다.
+            http://www.springframework.org/schema/tx
+            http://www.springframework.org/schema/tx/spring-tx-3.0.xsd">
+            
+            
+    <tx:annotation-driven />  // @Transaction 이 붙은 타입과 메소드에 트랜잭션 부가기능을 담은 프록시를 추가하도록 만들어주는 후처리기 등록
+    
+    <context:annotation-config /> // 코드의 애노테이션을 이용해서 부가적인 빈 설정 또는 초기화 작업을 해주는 후처리기를 등록. 
+            
+```
+
+
+<br>
+
+✍🏻 PostConstruct : java.lang.annotation 패키지에 포함된 공통 애노테이션의 한 가지로 JavaEE 5 나 JDK 6에 포함된 표준 애노테이션이다.
+
+##### @PostConstruct 초기화 메서드 
+
+```java
+public class XmlSqlService implements SqlService {
+    ...
+    @PostConstruct
+    public void loadSql() {... }
+    ...
+}
+```
+
+##### sqlmapFile 프로퍼티 추가
+
+```java
+<bean id="sqlService" class="springbook.user.sqlservice.XmlSqlService">
+    <property name="sqlmapFile" value="sqlmap.xml" />
+</bean>
+```
+
+![image](https://user-images.githubusercontent.com/46278436/126776924-615083ad-38bf-4b0b-9119-cb4ee8e47e96.png)
+
+<br>
+<br>
+<br>
+
+### ⚀변화를 위한 준비 : 인터페이스 분리. 
+
+> 책임에 따른 인터페이스 정의
+
+
+##### SqlService 서비스 오브젝트 구조
+
+![image](https://user-images.githubusercontent.com/46278436/126777950-aafbca3e-6893-427c-8ef1-43dddfb7d64f.png)
+
+
+##### SqlService 구현 클래스 코드
+
+- SqlReader가 리소스로부터 읽어온 SQL 정보를 맵으로 돌려준다고 정의하면 아래와 같은 코드가 된다.
+
+```java
+Map<String, String> sqls = sqlReader.readSql();  // Map이라는 구체적인 전송 타입을 강제하게 된다.
+sqlRegistry.addSqls(sqls);
+```
+
+* Map 타입으로 SqlRegistry에 전달했는데 SqlRegistry 내부에서 2차원 배열로 저장해두는 방식을 사용한다면, 다시 맵에서 배열로 옮기는 과정이 필요하다. <br>
+* 아래와 같이 Refactoring 할 수 있다. 
+
+##### SqlService 구현 클래스 Refactoring
+
+```java
+sqlReader.readSql(sqlRegistry);   // SQL을 저장할 대상인 sqlRegistry 오브젝트를 전달한다.
+```
+
+```java
+interface SqlRegistry{
+    void registerSql(String key, String sql);  // SqlReader는 읽어들인 SQL을 이 메소드를 이용해 레지스트리에 저장한다.
+    ...
+}
+```
+
+✍🏻 이렇게 하면 SqlService 코드를 통해 특정 포맷으로 변환한 SQL 정보를 주고받을 필요 없이 SqlReader가 직접 SqlRegistry 에 SQL 정보를 등록할 수 있다. <br>
+이렇게 하면 SqlReader와 SqlRegistry는 각자의 구현 방식을 독립적으로 유지하면서 꼭 필요한 관계만 가지고 협력해서 일을 할 수 있는 구조가 된다.
+
+
+<br>
+
+##### SqlRegistry 인터페이스
+
+```java
+public interface SqlRegistry {
+    void registerSql(String key, String sql);
+    
+    String findSql(String key) throws SqlNotFoundException; 
+}
+```
+
+##### SqlReader 인터페이스
+
+```java
+public interface SqlReader {
+    void read(SqlRegistry sqlRegistry); // SQL을 외부에서 가져와 SqlRegistry에 등록한다.
+}
+```
+
+
+<br>
+<br>
+
+### ⚀자기참조 빈으로 시작하기 
+
+##### SqlService 서비스의 클래스와 의존관계
+
+![image](https://user-images.githubusercontent.com/46278436/126781933-180cfadc-7c2c-46be-93f4-a5a05f80f2dc.png)
+
+* XmlSqlService 클래스는 이 세 가지 관심과 책임을 구분 없이 하나의 클래스에 뭉뚱그려서 만들어놓았던 것이다. 이제 이것을 각 책임에 따라 구분할 차례다. 
+* 위 그림에서는 모든 클래스는 인터페이스에만 의존하고 있음을 알 수 있다. 
+* 인터페이스에 의존하도록 만들어야 스프링의 DI를 적용할 수 있다. 
+
+![image](https://user-images.githubusercontent.com/46278436/126842018-504f2823-8f39-4bd5-a64e-398dcea12bf7.png)
+
+* 위 그림과 같이 SqlService, SqlReader, SqlRegistry 라는 세 개의 인터페이스를 구현하게 만들어도 상관없다. 
+
+<br>
+
+### 1. 인터페이스를 이용한 분리 
+
+SqlReader와 SqlRegistry 두 개의 인터페이스 타입 오브젝트에 의존하는 구조로 만들어보자
+
+##### SqlService 코드
+
+```java
+public class XmlSqlService implements SqlService {
+    private SqlReader sqlReader; 
+    private SqlRegistry sqlRegistry;
+    
+    public void setSqlReader(SqlReader sqlReader){
+        this.sqlReader = sqlReader; 
+    }    
+    
+    public void setSqlRegistry(SqlRegistry sqlRegistry){
+        this.sqlRegistry = sqlRegistry;
+    }
+}
+```
+
+##### SqlRegistry의 구현 부분
+
+```java
+public class XmlSqlService implements SqlService, SqlRegistry { 
+    private Map<String, String> sqlMap = new HashMap<String, String>();
+    
+    public String findSql(String key) throws SqlNotFoundException {
+        String sql = sqlMap.get(key);
+        if(sql == null) throw new SqlNotFoundException(key + "에 대한 SQL을 찾을 수 없습니다");
+        
+        else return sql; 
+    }    
+    public void registerSql(String key, String sql){
+        sqlMap.put(key, sql);
+    }
+}    
+```
+
+##### SqlReader 구현 부분
+
+: XmlSqlService 클래스가 SqlReader를 구현하도록 만들어보자.
+
+```java
+public class XmlSqlService implements SqlService, SqlRegistry, SqlReader {
+    private String sqlmapFile;
+    public void setSqlmapFile.(String sqlmapFile){
+        this.sqlmapFile = sqlmapFile;
+    }
+    
+    public void read(SqlRegistry sqlRegistry){
+        String contextPath = Sqlmap.class.getPackage().getName();
+        try{
+        
+            JAXBContext context = JAXBContext.newInstance(contextPath);
+            Unmarshaller unmarshaller = context.createUnmarshaller();
+            InputStream is = UserDao.calss.getResourceAsStream(sqlmapFile);
+            Sqlmap sqlmap = (Sqlmap)unmarshaller.unmarshal(is);
+            for(SqlType sql : sqlmap.getSql()_{
+                sqlRegistry.registerSql(sql.getKey(), sql.getValue());          }           
+            }        
+        } catch(JAXBException e){
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+```
+
+##### SqlService 인터페이스 구현 부분
+
+```java
+public class XmlSqlService implements SqlService, SqlRegistry, SqlReader {
+    ...
+    @PostConstruct
+    public void loadSql(){
+        this.sqlReader.read(this.sqlRegistry);
+    }
+    
+    public String getSql(String key) throws SqlRetrievalFailureException {
+        try {
+            return this.sqlRegistry.findSql(key);
+        }catch (SqlNotFoundException e){
+            throw new SqlRetrievalFailureException(e);
+        }
+    }
+}
+```
+
+### 2. 자기 참조 빈 설정
+
+: SqlService 빈이 SqlRegistry 와 SqlReader를 주입받도록 만들어야 한다.
+
+```java
+<bean id="sqlService" class="springbook.user.sqlservice.XmlSqlervice">
+        <property name="sqlReader" ref="sqlService" />
+        <property name="sqlRegistry ref="sqlService" />
+        <property name="sqlmapFile" value="sqlmap.xml" />
+</bean>
+```
+
+" 스프링 property의 ref 항목에 자기 자신을 넣는 것을 허용한다. "
+
+
+
+## ⚀디폴트 의존관계 
+
+### 1. 확장가능한 기반 클래스
+
+: 앞에서 자기참조가 가능한 빈으로 만들었던 XmlSqlService 코드에서 의존 인터페이스와 구현 코드를 제거하지만 하면 된다.
+
+##### SqlReader와 SqlRegistry 를 사용하는 SqlService 구현 클래스
+
+```java
+public class BaseSqlService implements SqlService {
+    protected SqlReader sqlReader; 
+    protected SqlRegistry sqlRegistry; 
+    
+    public void setSqlReader(SqlReader sqlReader) { this.sqlReader = sqlReader };
+    public void setSqlRegistry(SqlRegistry sqlRegistry) { this.sqlRegistry = sqlRegistry; }
+    
+    @PostConstruct
+    public void loadSql(){
+        this.sqlReader.read(this.sqlRegistry);
+    }
+    
+    public String getSql(String key) throws SqlRetrievalFailureException {
+        try {
+            return this.sqlRegistry.findSql(key); 
+        }catch(SqlNotFoundException e){.
+            throw new SqlRetrievalFailureException(e);
+        }
+    }
+}
+
+```
+
+##### HashMap을 이용하는 SqlRegistry 클래스
+
+: HashMap을 이용해 SQL을 저장해두고 찾아주는 기능을 담당했던 코드를 SqlRegistry를 구현하는 독립 클래스로 분리한 것이다. 
+
+```java
+public class HashMapSqlRegistry implements SqlRegistry {
+    private Map<String, String> sqlMap = new HashMap<String, String>();
+    
+    public String findSql(String key) throws SqlNotFoundException {
+        String sql = sqlMap.get(key);
+        if(sql == null)
+            throw new SqlNotFoundException(key + "를 이용해서 SQL을 찾을 수 없습니다.");
+        else return sql; 
+         
+    }
+    
+    public void registerSql(String key, String sql) { sqlMap.put(key, sql); }
+}
+```
+##### JAXB를 사용하는 SqlReader 클래스
+
+: JAXB를 이용해 XML 파일에서 SQL 정보를 읽어오는 코드를 SqlReader 인퍼테이스의 구현 클래스로 독립시킬 차례이다.
+
+```java
+public class JaxbXmlSqlReader implements SqlReader {
+    private String sqlmapFile; // sqlmapFile은 SqlReader의 특정 구현 방법에 종속되는 프로퍼티가 된다. 
+    
+    public void setSqlmapFile(String sqlmapFile) { this.sqlmapFile = sqlmapFile; }
+    
+    public void read(SqlRegistry sqlRegistry){
+        ...   // XmlSqlService에서 사용했던 JAXB API를 이용해 SQL을 읽어오는 코드 생략.
+    }
+
+}
+```
+
+##### SqlReader 와 SqlRegistry 의 독립적인 빈 설정. 
+
+: 기존의 자신을 참조하도록 설정되어 있던 sqlService 빈을 별도로 등록한 두 개의 빈을 참조하도록 리스트를 수정. 
+
+```java
+<bean id="sqlService" class="springbook.user.sqlservice.BaseSqlService">
+    <property name="sqlReader" ref="sqlReader" />
+    <property name="sqlRegistry" ref="sqlRegistry" />
+</bean>
+
+<bean id="sqlReader" class="spring.user.sqlservice.JaxbXmlSqlReader">
+    <property name="sqlmapFile" value="sqlmap.xml" />
+</bean>
+
+<bean id="sqlRegistry" class="springbook.user.sqlservice.HashMapSqlRegistry">
+</bean>
+```
+
+### 2. 디폴트 의존관계를 갖는 빈 만들기 
+
+✍ 디폴트 의존관계란 외부에서 DI 받지 않는 경우 기본적으로 자동 적용되는 의존관계를 말한다. 
+
+##### 생성자를 통한 디폴트 의존관계 설정.
+
+```java
+public class DefaultSqlService extends BaseSqlService {
+    public DefaultSqlService(){
+        setSqlReader(new JaxbXmlReader());
+        setSqlRegistry(new HashMapSqlRegistry());        // 생성자에서 디폴트 의존 오브젝트를 직접만들어서 스스로 DI 해준다.
+    }
+
+```
+
+##### 디폴트 의존관계 빈의 설정
+
+```JAVA
+<bean id="sqlService" class="springbook.user.sqlservice.DefaultSqlService" />
+```
+
+##### 디폴트 값을 갖는 JaxbXmlSqlReader 
+
+```java
+public class JaxbXmlSqlReader implements SqlReader {
+    private static final String DEFAULT_SQLMAP_FILE = "sqlmap.xml";  // 굳이 상수로 만들지 않고 바로 sqlmapFile의 값으로 넣어도 상관없지만 이렇게 해주면 의도가 코드에 분명히 드러나고 코드도 폼이 난다.
+    
+    public void setSqlmapFile(String sqlMapFile) { this.sqlmapFile = sqlmapFile; }
+   
+}
+```
+##### 디폴트 의존 오브젝트 대신 사용할 빈 선언
+
+```java
+<bean id="sqlService" class="springbook.user.sqlservice.DefaultSqlService" >
+    <property name="sqlRegistry" ref="ultraSuperFastSqlRegistry" /> 
+</bean>
+```
